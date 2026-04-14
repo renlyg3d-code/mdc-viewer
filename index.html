@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MDC Patient Viewer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+<div class="main-container">
+
+<h2>MDC Patient Viewer</h2>
+
+<h3>Search</h3>
+<input type="text" id="searchInput" placeholder="Search name..." onkeyup="searchData()">
+<button onclick="searchData()">Search</button>
+<button onclick="resetSearch()">Reset</button>
+
+<h3>All Records</h3>
+
+<table id="allTable">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Code</th>
+      <th>Name</th>
+      <th>Age</th>
+      <th>Gender</th>
+      <th>DOB</th>
+      <th>Contact</th>
+      <th>Test</th>
+      <th>Company</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<div class="pagination">
+  <button onclick="prevPage()">Prev</button>
+  <span id="pageInfo"></span>
+  <button onclick="nextPage()">Next</button>
+</div>
+
+<script>
+
+let allData = [];
+let currentPage = 1;
+const rowsPerPage = 10;
+let searchDataList = [];
+
+const scriptURL = "https://script.google.com/macros/s/AKfycbxt_MBclM-U1PIxyCa1GpQ1uR0oyIWNqAErTC-X6ch3iPgPRSwUj3IlUGacrIPgqYaC/exec"; // 🔥 PUT YOUR URL
+
+// LOAD DATA
+function loadAllData() {
+  fetch(scriptURL)
+    .then(res => res.json())
+    .then(res => {
+
+      allData = res.records.sort((a, b) => {
+        return new Date(b.date) - new Date(a.date);
+      });
+
+      currentPage = 1;
+      displayTable();
+    })
+    .catch(err => console.error(err));
+}
+
+// FORMAT DATE
+function formatDate(dateString) {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  if (isNaN(date)) return dateString;
+
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+
+  return `${y}-${m}-${d}`;
+}
+
+// DISPLAY TABLE
+function displayTable() {
+  const start = (currentPage - 1) * rowsPerPage;
+  const pageData = allData.slice(start, start + rowsPerPage);
+
+  let rows = "";
+
+  pageData.forEach(d => {
+    rows += `
+      <tr>
+        <td>${formatDate(d.date)}</td>
+        <td>
+          <a href="#" onclick='printReceipt(${JSON.stringify(d)})'>
+            ${d.code}
+          </a>
+        </td>
+        <td>
+          <a href="#" onclick='printReceipt(${JSON.stringify(d)})'>
+            ${d.lastName}, ${d.firstName}
+          </a>
+        </td>
+        <td>${d.age}</td>
+        <td>${d.gender}</td>
+        <td>${formatDate(d.dob)}</td>
+        <td>${d.contact}</td>
+        <td>${d.test}</td>
+        <td>${d.company}</td>
+      </tr>
+    `;
+  });
+
+  document.querySelector("#allTable tbody").innerHTML = rows;
+
+  const totalPages = Math.ceil(allData.length / rowsPerPage);
+  document.getElementById("pageInfo").innerText =
+    `Page ${currentPage} of ${totalPages}`;
+}
+
+// SEARCH
+function searchData() {
+  const query = document.getElementById("searchInput").value.toLowerCase();
+
+  if (!query) {
+    searchDataList = [];
+    displayTable();
+    return;
+  }
+
+  searchDataList = allData.filter(d => {
+    const full = (d.lastName + " " + d.firstName).toLowerCase();
+    return full.includes(query);
+  });
+
+  currentPage = 1;
+  displaySearchTable();
+}
+
+function displaySearchTable() {
+  const start = (currentPage - 1) * rowsPerPage;
+  const pageData = searchDataList.slice(start, start + rowsPerPage);
+
+  let rows = "";
+
+  pageData.forEach(d => {
+    rows += `
+      <tr>
+        <td>${formatDate(d.date)}</td>
+        <td>
+          <a href="#" onclick='printReceipt(${JSON.stringify(d)})'>
+            ${d.code}
+          </a>
+        </td>
+        <td>
+          <a href="#" onclick='printReceipt(${JSON.stringify(d)})'>
+            ${d.lastName}, ${d.firstName}
+          </a>
+        </td>
+        <td>${d.age}</td>
+        <td>${d.gender}</td>
+        <td>${formatDate(d.dob)}</td>
+        <td>${d.contact}</td>
+        <td>${d.test}</td>
+        <td>${d.company}</td>
+      </tr>
+    `;
+  });
+
+  document.querySelector("#allTable tbody").innerHTML = rows;
+
+  const totalPages = Math.ceil(searchDataList.length / rowsPerPage);
+  document.getElementById("pageInfo").innerText =
+    `Search Page ${currentPage} of ${totalPages}`;
+}
+
+function resetSearch() {
+  document.getElementById("searchInput").value = "";
+  searchDataList = [];
+  currentPage = 1;
+  displayTable();
+}
+
+// PAGINATION
+function nextPage() {
+  const dataSource = searchDataList.length ? searchDataList : allData;
+  const totalPages = Math.ceil(dataSource.length / rowsPerPage);
+
+  if (currentPage < totalPages) {
+    currentPage++;
+    searchDataList.length ? displaySearchTable() : displayTable();
+  }
+}
+
+function prevPage() {
+  if (currentPage > 1) {
+    currentPage--;
+    searchDataList.length ? displaySearchTable() : displayTable();
+  }
+}
+
+// PRINT RECEIPT (1/4 LETTER)
+function printReceipt(data) {
+
+  const win = window.open('', '', 'width=400,height=600');
+
+  win.document.write(`
+    <html>
+    <head>
+      <style>
+        @page {
+          size: 4.25in 5.5in;
+          margin: 5mm;
+        }
+        body {
+          font-family: Arial;
+          padding: 10px;
+          font-size: 12px;
+        }
+        h2 { text-align:center; }
+        .line { margin:4px 0; }
+        .total { font-weight:bold; margin-top:10px; }
+        hr { margin:8px 0; }
+      </style>
+    </head>
+    <body>
+
+      <h2>RECEIPT</h2>
+      <hr>
+
+      <div class="line">Code: ${data.code}</div>
+      <div class="line">Name: ${data.lastName}, ${data.firstName}</div>
+      <div class="line">Age: ${data.age}</div>
+      <div class="line">Gender: ${data.gender}</div>
+
+      <hr>
+
+      <div class="line">Test: ${data.test}</div>
+      <div class="line">Company: ${data.company}</div>
+
+      <hr>
+      <div class="line">Date: ${formatDate(data.date)}</div>
+
+      <hr>
+      <p style="text-align:center;">Thank you!</p>
+
+    </body>
+    </html>
+  `);
+
+  win.document.close();
+  win.print();
+}
+
+// LOAD
+window.onload = loadAllData;
+
+</script>
+
+</div>
+</body>
+</html>
